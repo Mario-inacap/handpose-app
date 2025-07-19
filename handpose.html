@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Contador de dedos</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+</head>
+<body>
+  <video id="video" autoplay playsinline style="transform: scaleX(-1);" width="320" height="240"></video>
+  <p>Dedos levantados: <span id="dedos">0</span></p>
+
+  <script>
+    async function setupCamera() {
+      const video = document.getElementById('video');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      return new Promise(resolve => {
+        video.onloadedmetadata = () => resolve(video);
+      });
+    }
+
+    function contarDedos(prediction) {
+      if (!prediction || prediction.length === 0) return 0;
+      const landmarks = prediction[0].landmarks;
+      const dedos = [8, 12, 16, 20]; // Índice a meñique
+      let count = 0;
+      for (let i = 0; i < dedos.length; i++) {
+        if (landmarks[dedos[i]][1] < landmarks[dedos[i] - 2][1]) count++;
+      }
+      // Pulgar (eje X)
+      if (landmarks[4][0] > landmarks[2][0]) count++;
+      return count;
+    }
+
+    async function main() {
+      const video = await setupCamera();
+      const model = await handpose.load();
+
+      setInterval(async () => {
+        const predictions = await model.estimateHands(video);
+        const n = contarDedos(predictions);
+        document.getElementById("dedos").innerText = n;
+        if (window.AppInventor) {
+          window.AppInventor.setWebViewString(n.toString());
+        }
+      }, 500);
+    }
+
+    main();
+  </script>
+</body>
+</html>
